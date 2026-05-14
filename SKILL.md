@@ -1,12 +1,13 @@
 ---
 name: x-bookmarks
-version: 1.1.0
+version: 1.2.0
 description: >
   Fetch, summarize, and manage X/Twitter bookmarks via bird CLI or X API v2.
   Use when: (1) user says "check my bookmarks", "what did I bookmark", "bookmark digest",
   "summarize my bookmarks", "x bookmarks", "twitter bookmarks", (2) user wants a periodic
   digest of saved tweets, (3) user wants to categorize, search, or analyze their bookmarks,
-  (4) scheduled bookmark digests via cron.
+  (4) scheduled bookmark digests via cron, (5) user wants "deep analysis", "action queue",
+  "process the backlog", or "extract actions from my bookmarks" — see Workflow 6.
   Auth: bird CLI with browser cookies, OR X API v2 with OAuth 2.0 tokens.
 requires:
   env:
@@ -196,6 +197,27 @@ For stale bookmarks:
 2. For each: extract the TL;DR and one actionable takeaway
 3. Present: "Apply it today or clear it"
 4. User can unbookmark via: `bird unbookmark <tweet-id>` (bird only)
+
+### 6. Deep Analysis → Action Queue
+
+For backlog processing or when the user wants rigorous analysis, not a quick triage.
+
+**Trigger phrases:** "deep analysis of my bookmarks", "process the backlog", "extract actions from my bookmarks", "bookmark action queue", "what should I do with my bookmarks", or any explicit request for ranked, prioritized actions.
+
+**How it differs from Workflow 1 (Action-First Digest):**
+- Action-First Digest = quick triage of recent bookmarks, agent-executable actions per bookmark
+- Deep Analysis = rigorous 4-pass process (inventory → classify → cross-cluster → score & rank) producing a capped queue of 15 ranked actions tied to Sam's active workstreams (job search, Margin, case studies, writing, operating system)
+
+**When to use which:**
+- Default to Workflow 1 for "check my bookmarks" / weekly digest cadence
+- Use Workflow 6 when the batch is ≥30 bookmarks, when Sam explicitly asks for "deep analysis" or "action queue," or when the goal is backlog clearance rather than weekly hygiene
+
+**Procedure:** Load [references/deep-analysis.md](references/deep-analysis.md) and follow it end-to-end. The reference covers hard rules, the 4-pass process, the action record format, ranking priority, output structure, and common mistakes.
+
+**Non-goals:**
+- Not a substitute for Workflow 1's quick weekly digest — heavier process, slower
+- Does not generate finished outreach copy (Sam writes final prose; the queue produces angle + draft skeleton only)
+- Does not unbookmark or modify X state (read-only)
 
 ## Error Handling
 
