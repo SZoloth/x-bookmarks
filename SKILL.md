@@ -212,7 +212,11 @@ For backlog processing or when the user wants rigorous analysis, not a quick tri
 - Default to Workflow 1 for "check my bookmarks" / weekly digest cadence
 - Use Workflow 6 when the batch is ≥30 bookmarks, when Sam explicitly asks for "deep analysis" or "action queue," or when the goal is backlog clearance rather than weekly hygiene
 
-**Procedure:** Load [references/deep-analysis.md](references/deep-analysis.md) and follow it end-to-end. The reference covers hard rules, the 4-pass process, the action record format, ranking priority, output structure, and common mistakes.
+**Procedure:** Two variants live under `references/`. Pick by runtime:
+- **Claude Code / Claude API** → [references/deep-analysis.md](references/deep-analysis.md)
+- **Codex CLI / ChatGPT GPT-5 / any OpenAI surface** → [references/deep-analysis-gpt5.md](references/deep-analysis-gpt5.md)
+
+Both cover the same 4-pass process, action record schema, ranking priority, output structure, and common mistakes. They differ in structural cues (the GPT-5 variant uses XML-tagged sections, an explicit `<persistence>` block, a self-reflection rubric, and stop conditions tuned for GPT-5's failure modes). If unsure which to load, use the Claude version.
 
 **Non-goals:**
 - Not a substitute for Workflow 1's quick weekly digest — heavier process, slower
