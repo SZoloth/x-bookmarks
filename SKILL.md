@@ -1,13 +1,16 @@
 ---
 name: x-bookmarks
-version: 1.2.0
+version: 1.3.0
 description: >
   Fetch, summarize, and manage X/Twitter bookmarks via bird CLI or X API v2.
+  Workflow 6 (deep analysis) also covers GitHub starred repos via the gh CLI,
+  producing a unified action queue across both sources.
   Use when: (1) user says "check my bookmarks", "what did I bookmark", "bookmark digest",
   "summarize my bookmarks", "x bookmarks", "twitter bookmarks", (2) user wants a periodic
   digest of saved tweets, (3) user wants to categorize, search, or analyze their bookmarks,
   (4) scheduled bookmark digests via cron, (5) user wants "deep analysis", "action queue",
-  "process the backlog", or "extract actions from my bookmarks" — see Workflow 6.
+  "process the backlog", "process my saved items", "analyze my stars", or "extract actions
+  from my bookmarks/stars" — see Workflow 6.
   Auth: bird CLI with browser cookies, OR X API v2 with OAuth 2.0 tokens.
 requires:
   env:
@@ -198,30 +201,31 @@ For stale bookmarks:
 3. Present: "Apply it today or clear it"
 4. User can unbookmark via: `bird unbookmark <tweet-id>` (bird only)
 
-### 6. Deep Analysis → Action Queue
+### 6. Deep Analysis → Action Queue (X bookmarks + GitHub stars)
 
-For backlog processing or when the user wants rigorous analysis, not a quick triage.
+For backlog processing or when the user wants rigorous analysis, not a quick triage. Covers **both X bookmarks and GitHub starred repos**, in any combination — X-only, GitHub-only, or mixed. Mixed batches are usually strongest because cross-source patterns (a tool tweeted about + starred repo for that tool) carry more signal than either source alone.
 
-**Trigger phrases:** "deep analysis of my bookmarks", "process the backlog", "extract actions from my bookmarks", "bookmark action queue", "what should I do with my bookmarks", or any explicit request for ranked, prioritized actions.
+**Trigger phrases:** "deep analysis of my bookmarks/stars", "process the backlog", "extract actions from my saved items", "bookmark action queue", "analyze my stars", "process my saved items", "what should I do with my bookmarks", or any explicit request for ranked, prioritized actions across saved items.
 
 **How it differs from Workflow 1 (Action-First Digest):**
-- Action-First Digest = quick triage of recent bookmarks, agent-executable actions per bookmark
-- Deep Analysis = rigorous 4-pass process (inventory → classify → cross-cluster → score & rank) producing a capped queue of 15 ranked actions tied to Sam's active workstreams (job search, Margin, case studies, writing, operating system)
+- Action-First Digest = quick triage of recent bookmarks, agent-executable actions per bookmark (X only)
+- Deep Analysis = rigorous 4-pass process (inventory → classify → cross-cluster → score & rank) producing a capped queue of 15 ranked actions tied to Sam's active workstreams (job search, Margin, case studies, writing, operating system). Pulls from X bookmarks AND/OR GitHub stars.
 
 **When to use which:**
 - Default to Workflow 1 for "check my bookmarks" / weekly digest cadence
-- Use Workflow 6 when the batch is ≥30 bookmarks, when Sam explicitly asks for "deep analysis" or "action queue," or when the goal is backlog clearance rather than weekly hygiene
+- Use Workflow 6 when the batch is ≥30 items, when Sam mentions GitHub stars at all, when he explicitly asks for "deep analysis" or "action queue," or when the goal is backlog clearance rather than weekly hygiene
 
 **Procedure:** Two variants live under `references/`. Pick by runtime:
 - **Claude Code / Claude API** → [references/deep-analysis.md](references/deep-analysis.md)
 - **Codex CLI / ChatGPT GPT-5 / any OpenAI surface** → [references/deep-analysis-gpt5.md](references/deep-analysis-gpt5.md)
 
-Both cover the same 4-pass process, action record schema, ranking priority, output structure, and common mistakes. They differ in structural cues (the GPT-5 variant uses XML-tagged sections, an explicit `<persistence>` block, a self-reflection rubric, and stop conditions tuned for GPT-5's failure modes). If unsure which to load, use the Claude version.
+Both cover the same 4-pass process, dual-source ingestion (bird CLI for X, gh CLI for GitHub), action record schema, ranking priority, output structure, and common mistakes. They differ in structural cues (the GPT-5 variant uses XML-tagged sections, an explicit `<persistence>` block, a self-reflection rubric, and stop conditions tuned for GPT-5's failure modes). If unsure which to load, use the Claude version.
 
 **Non-goals:**
 - Not a substitute for Workflow 1's quick weekly digest — heavier process, slower
 - Does not generate finished outreach copy (Sam writes final prose; the queue produces angle + draft skeleton only)
-- Does not unbookmark or modify X state (read-only)
+- Does not unbookmark, unstar, or modify X / GitHub state (read-only)
+- Does not deep-read repo source files — README + topics + metadata is the inventory depth
 
 ## Error Handling
 
