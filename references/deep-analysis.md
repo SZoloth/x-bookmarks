@@ -1,10 +1,10 @@
-# Bookmarks & Stars Deep Analysis → Action Queue
+# Saved Items Deep Analysis → Action Queue
 
 ## Purpose
 
-Convert a batch of Sam's saved X (Twitter) bookmarks **and/or GitHub starred repos** into a ranked queue of **specific next actions** across his active workstreams. The output is a working action list, not a digest. If a saved item doesn't produce an action or a deliberate "park for later" verdict with a reason, you haven't analyzed it.
+Convert a batch of Sam's saved items across **X bookmarks, GitHub starred repos, and Readwise (Reader saved articles + highlights)** into a ranked queue of **specific next actions** across his active workstreams. The output is a working action list, not a digest. If a saved item doesn't produce an action or a deliberate "park for later" verdict with a reason, you haven't analyzed it.
 
-Both sources are accepted in any combination. A run can be X-only, GitHub-only, or mixed. Mixed batches are usually strongest because cross-source patterns (a tool tweeted about + starred repo for the same tool) carry more signal than either source alone.
+All three sources are accepted in any combination. A run can be single-source, any pair, or all three. Three-source batches are the strongest signal because cross-source patterns (a tool tweeted about + a starred repo + a highlighted article on the same topic) carry far more conviction than any single source alone.
 
 ## Input
 
@@ -20,13 +20,21 @@ One or more of the following will be supplied:
 - A JSON dump from `gh api users/$USER/starred --paginate`
 - A time range (e.g. "stars from last 60 days")
 
-If neither is supplied, ask which batch(es) to pull. Don't guess.
+**Readwise (Reader + highlights):**
+- A list of Reader document URLs or document IDs
+- A list of highlight IDs
+- A JSON dump from `readwise reader-list-documents` or `readwise readwise-list-highlights`
+- A time range (e.g. "Reader saves from last 14 days", "highlights from last 30 days")
+- A tag filter (e.g. all Reader docs tagged `margin`)
+
+If none is supplied, ask which batch(es) to pull. Don't guess.
 
 ## Hard rules (do not violate)
 
 - **`bird` CLI for all X content.** Never `WebFetch` on `x.com` — it returns a 402 login wall. Use `bird read <url>` for single tweets, `bird thread <url>` for threads.
 - **`gh` CLI for all GitHub content.** Use `gh repo view <repo> --json description,homepageUrl,stargazerCount,pushedAt,primaryLanguage,repositoryTopics` for metadata and `gh api repos/<owner>/<repo>/readme --jq '.content' | base64 -d` (or `gh repo view <repo> --json readme`) for README content. Use `gh api users/<owner>` for maintainer profile data.
-- **Expand before analyzing.** For tweets: read the full thread, quoted tweets, and any linked articles. For repos: read the README, the latest commit date, topics, and primary language. A bookmark of a thread without the thread, or a starred repo without the README, is a stub. For linked articles, use `defuddle` or Readwise full-content extraction. Skip pages that 402/paywall — note them, don't fabricate.
+- **`readwise` CLI for all Readwise content.** Use `readwise reader-get-document-details --id <doc_id> --include-html-content` for article body, `readwise reader-get-document-highlights --document-id <doc_id>` for a document's highlights, and `readwise readwise-list-highlights --updated-after <ISO date>` for recent standalone highlights. Honor the `readwise-full-content-strict` rule: for category=podcast/video/pdf/epub OR word_count > 3000 OR summary < 150 chars, **always** extract `html_content` — never compile from the auto-summary alone.
+- **Expand before analyzing.** For tweets: read the full thread, quoted tweets, and any linked articles. For repos: read the README, the latest commit date, topics, and primary language. For Reader docs: extract full content per the rule above; for a doc with existing highlights, those highlights ARE the expansion signal — Sam already engaged. For standalone highlights, fetch the parent book/article context if not in the highlight payload. A bookmark of a thread without the thread, a starred repo without the README, or a Reader save without the content (when the rule triggers) is a stub. For linked articles, use `defuddle` or Readwise full-content extraction. Skip pages that 402/paywall — note them, don't fabricate.
 - **Default to reviewed, not rejected.** Reject only after reading the underlying content and finding no value. Surface signals (author, repo language, format, topic) are not grounds for dismissal — that's the beacon-inbox-triage rule.
 - **Warm paths only for any outreach action.** Cold DMs to strangers — including repo maintainers — are not an action; finding a warm intro path *to* that person is. Sam's strategy v2 is 0% cold channel.
 - **Sam writes the final version of any prose.** Drafts, frameworks, and bullet structures are fair game. Do not output finished outreach copy as if it's ready to send.
@@ -51,11 +59,11 @@ Work in four passes. Don't shortcut.
 
 For each saved item, capture:
 
-**Common fields (both sources):**
+**Common fields (all sources):**
 - Source URL
 - Author / owner
-- Date (created or starred)
-- Format (single tweet / thread / quote-tweet / linked article / GitHub repo)
+- Date (created, starred, saved, or highlighted)
+- Format (single tweet / thread / quote-tweet / linked article / GitHub repo / Reader article / Reader podcast / Reader video / Reader PDF / Reader epub / standalone highlight)
 - One-line honest restatement of the core claim, artifact, or repo purpose
 
 **X-bookmark-specific:**
@@ -68,7 +76,16 @@ For each saved item, capture:
 - README summary (what it does, who it's for, how to install/run)
 - Maintainer profile signal if relevant (sole maintainer, org-backed, recent activity)
 
-Skip nothing. If `bird` or `gh` fails on an item, note it and continue.
+**Readwise-specific:**
+- Category (article / book / podcast / video / pdf / epub / tweet / email)
+- Reader location (new / later / archive / shortlist / feed)
+- Whether Sam has highlighted within it (and how many highlights — engagement signal)
+- Tags Sam applied in Reader
+- `first_opened_at` (null = unseen, non-null = seen)
+- For standalone highlights: the highlight text, any note Sam attached, the parent book/article title and author
+- Expanded content per `readwise-full-content-strict`
+
+Skip nothing. If `bird`, `gh`, or `readwise` fails on an item, note it and continue.
 
 ### Pass 2 — Classify
 
@@ -89,17 +106,27 @@ Repo-specific classification rules:
 - **<50 stars and no clear differentiator:** default to Reading or Cold storage.
 - **Fits Margin's domain:** route to Margin input, not Tool — even if it's also usable as a tool.
 
+Readwise-specific classification rules:
+- **Reader doc with highlights:** the doc has already passed Sam's first filter. Default to Concept, Writing seed, or Case study — not Reading queue (he already read it). Use the highlights themselves to determine which.
+- **Reader doc, unread (first_opened_at is null), word_count > 3000:** default to Reading queue unless the content explicitly suggests Tool/Margin/Person.
+- **Standalone highlight:** primary category is almost always Concept or Writing seed. Treat the highlight as a compressed thesis statement Sam has already endorsed.
+- **Reader category=podcast/video/pdf/epub:** never classify from summary alone; the full transcript or extracted content is the source of truth.
+- **Reader doc in shortlist:** Sam manually curated this. Apply higher relevance weight in Pass 4 scoring than feed/later docs.
+
 ### Pass 3 — Cross-cluster
 
-Look across the batch for patterns. Cross-source patterns are the highest-signal findings; a single tweet or a single star is weaker evidence than three independent sources converging. Mixed-source patterns (X + GitHub) are the strongest signal in the batch.
+Look across the batch for patterns. Cross-source patterns are the highest-signal findings; a single item is weaker evidence than three independent sources converging. **Three-source patterns (X + GitHub + Readwise) are the strongest possible signal — they represent the same thesis arriving through three independent curation channels.**
 
 Report any of the following:
-- A tool mentioned in a bookmark and also represented in a starred repo (converging interest)
-- A person who appears as both a bookmark author and a repo maintainer (strong Person candidate)
+- A tool mentioned in a bookmark, represented in a starred repo, AND written about in a saved/highlighted article (3-way convergence — flag as headline)
+- A tool tweeted about and starred (2-way X+GH convergence)
+- A concept Sam tweeted-saved and also highlighted in a long-form article (2-way X+Readwise convergence)
+- A repo Sam starred whose maintainer or topic is also covered in a saved article (2-way GH+Readwise convergence)
+- A person who appears as both a bookmark author and a repo maintainer, or as both a tweet author and a highlighted article author (strong Person candidate)
 - Two or more saved items pointing at the same company, person, or tool across sources
-- A recurring concept showing up in tweets and READMEs from different communities
+- A recurring concept showing up across tweets, READMEs, and article highlights from different communities
 - A contradiction between two saved items
-- A latent thesis Sam is building toward without realizing it (a cluster of stars + bookmarks pointing at the same problem space)
+- A latent thesis Sam is building toward without realizing it (a cluster of saves pointing at the same problem space across sources)
 
 ### Pass 4 — Score and write the action queue
 
@@ -119,11 +146,13 @@ ETA: <a real date within the next 14 days, or "park: <date>" with a re-surface d
 Then rank the full list using this priority:
 
 1. **Warm-path conversations** (Person category with a plausible intro path) — these are scarce and time-sensitive.
-2. **Pattern-cluster items** (anything that showed up 2+ times in Pass 3, especially mixed X + GitHub clusters).
-3. **Margin or case-study items that unblock work in flight.**
-4. **Tools / repos** Sam can apply this week with S effort.
-5. **Writing seeds** that map to an existing case study or a published-this-quarter goal.
-6. **Reading queue and concepts** at the bottom.
+2. **3-source convergence items** (any cluster that appeared across X + GitHub + Readwise in Pass 3) — these are the highest-conviction signals in the batch.
+3. **2-source convergence items** (mixed X+GH, X+Readwise, or GH+Readwise clusters).
+4. **Margin or case-study items that unblock work in flight.**
+5. **Highlighted-article-derived items** (Concepts or Writing seeds anchored to a specific Readwise highlight Sam already endorsed) — higher confidence than freshly-saved-but-unread items.
+6. **Tools / repos** Sam can apply this week with S effort.
+7. **Writing seeds** that map to an existing case study or a published-this-quarter goal.
+8. **Reading queue and concepts** at the bottom.
 
 Cap the queue at **15 actions per batch.** If more survive, demote the weaker ones to a "next batch" section with their park dates. Volume kills follow-through.
 
@@ -132,18 +161,20 @@ Cap the queue at **15 actions per batch.** If more survive, demote the weaker on
 Produce one Markdown document with these sections, in this order:
 
 ```
-# Bookmarks & Stars Analysis — <date range>
+# Saved Items Analysis — <date range>
 
 ## Summary
 - X bookmarks processed: <N>
 - Starred repos processed: <N>
+- Reader docs processed: <N>
+- Standalone highlights processed: <N>
 - Actions surfaced: <N>
 - Parked: <N>
 - Cold storage: <N>
 - Failed to expand: <N>
 
 ## Cross-cluster patterns
-<bulleted list from Pass 3. Call out mixed X + GitHub clusters explicitly. Empty list is acceptable if nothing converges — say so, don't pad.>
+<bulleted list from Pass 3. Lead with any 3-source convergences (X + GitHub + Readwise), then 2-source, then within-source patterns. Empty list is acceptable if nothing converges — say so, don't pad.>
 
 ## Action queue
 <numbered list of action records, ranked per Pass 4.>
@@ -172,6 +203,9 @@ Produce one Markdown document with these sections, in this order:
 - **Cold-storage dumps without reasons.** A saved item Sam saved had some signal; explain what made you drop it so future passes don't re-litigate.
 - **Padding the cross-cluster section.** If nothing converged, say so. Forced patterns are worse than no patterns.
 - **Treating a starred repo as if Sam will deploy it.** Default action verbs for repos are "Try" (S), "Steal the pattern from" (S), "Fork and adapt for X" (M), or "Build a wrapper integrating with Margin" (L). Not "Use this in production."
+- **Treating an unread Reader save as if Sam read it.** A doc with `first_opened_at: null` is intent-to-read, not read. Don't infer Sam endorses its claims; classify as Reading queue or Concept-pending unless the content itself produces a Tool/Margin hook.
+- **Compiling from a Readwise auto-summary.** The `readwise-full-content-strict` rule is non-negotiable for podcast/video/pdf/epub OR word_count > 3000 OR summary < 150 chars. Extract `html_content` or treat the item as failed-to-expand.
+- **Treating a highlight as the same signal as a save.** A highlight is a *stronger* signal — Sam already read the parent, picked the passage, and chose to preserve it. Highlights should usually become Concepts or Writing seeds with high confidence, not Reading queue items.
 
 ## Tools and paths to use
 
@@ -181,6 +215,11 @@ Produce one Markdown document with these sections, in this order:
 - `gh api repos/<owner>/<repo>/readme --jq '.content' | base64 -d` — README content
 - `gh api users/<owner>` — maintainer profile data
 - `gh api users/$USER/starred --paginate` — Sam's full stars list
+- `readwise reader-list-documents --location new --updated-after <ISO>` — recent Reader saves
+- `readwise reader-get-document-details --id <doc_id> --include-html-content` — full article body (required when the strict rule triggers)
+- `readwise reader-get-document-highlights --document-id <doc_id>` — highlights on a saved doc
+- `readwise readwise-list-highlights --updated-after <ISO>` — recent standalone highlights across the corpus
+- `readwise readwise-search-highlights --query "<term>"` — search the highlight corpus for cross-cluster pattern verification
 - `x-bookmarks` skill — pull a batch of saved bookmarks
 - `defuddle` skill — clean extraction of linked article content
 - `beacon` skill — bookmark + star intake; if a Person or Company action exists, beacon may already have an item for it; check before duplicating
@@ -192,7 +231,7 @@ Produce one Markdown document with these sections, in this order:
 
 Only ask if these are genuinely unresolvable from input:
 
-- Which batch(es) of saved items? (X bookmarks, GitHub stars, or both — with URLs, time ranges, or skill outputs)
+- Which batch(es) of saved items? (X bookmarks, GitHub stars, Readwise Reader docs, Readwise highlights — any combination, with URLs, time ranges, tag filters, or skill outputs)
 - Any workstream to weight more heavily this run? (default: balanced across the five)
 - Output location: stdout, vault file at `resources/saved-items/<date>.md`, or both?
 

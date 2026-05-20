@@ -1,17 +1,21 @@
 ---
 name: x-bookmarks
-version: 1.3.0
+version: 1.4.0
 description: >
   Fetch, summarize, and manage X/Twitter bookmarks via bird CLI or X API v2.
-  Workflow 6 (deep analysis) also covers GitHub starred repos via the gh CLI,
-  producing a unified action queue across both sources.
+  Workflow 6 (deep analysis) covers all three saved-item sources — X bookmarks
+  via bird, GitHub starred repos via gh CLI, and Readwise (Reader saved articles
+  + highlights) via the readwise CLI — producing a unified action queue across
+  whichever combination of sources is supplied.
   Use when: (1) user says "check my bookmarks", "what did I bookmark", "bookmark digest",
   "summarize my bookmarks", "x bookmarks", "twitter bookmarks", (2) user wants a periodic
   digest of saved tweets, (3) user wants to categorize, search, or analyze their bookmarks,
   (4) scheduled bookmark digests via cron, (5) user wants "deep analysis", "action queue",
-  "process the backlog", "process my saved items", "analyze my stars", or "extract actions
-  from my bookmarks/stars" — see Workflow 6.
-  Auth: bird CLI with browser cookies, OR X API v2 with OAuth 2.0 tokens.
+  "process the backlog", "process my saved items", "analyze my stars", "analyze my
+  highlights", "process my reader inbox", "extract actions from my saved items", or any
+  request spanning bookmarks, stars, and/or Readwise as inputs — see Workflow 6.
+  Auth: bird CLI with browser cookies, OR X API v2 with OAuth 2.0 tokens; gh CLI for stars;
+  readwise CLI (`readwise login`) for Reader and highlights.
 requires:
   env:
     - AUTH_TOKEN: "X/Twitter auth token (from browser cookies, for bird CLI auth)"
@@ -201,31 +205,32 @@ For stale bookmarks:
 3. Present: "Apply it today or clear it"
 4. User can unbookmark via: `bird unbookmark <tweet-id>` (bird only)
 
-### 6. Deep Analysis → Action Queue (X bookmarks + GitHub stars)
+### 6. Deep Analysis → Action Queue (X bookmarks + GitHub stars + Readwise)
 
-For backlog processing or when the user wants rigorous analysis, not a quick triage. Covers **both X bookmarks and GitHub starred repos**, in any combination — X-only, GitHub-only, or mixed. Mixed batches are usually strongest because cross-source patterns (a tool tweeted about + starred repo for that tool) carry more signal than either source alone.
+For backlog processing or when the user wants rigorous analysis, not a quick triage. Covers **three saved-item sources** in any combination — X bookmarks, GitHub starred repos, and Readwise (Reader saved articles + highlights). Single-source, any pair, or all three. Three-source batches carry the strongest signal because the same thesis arriving through three independent curation channels (tweet + repo + highlighted article) is far more conviction-worthy than any single source alone.
 
-**Trigger phrases:** "deep analysis of my bookmarks/stars", "process the backlog", "extract actions from my saved items", "bookmark action queue", "analyze my stars", "process my saved items", "what should I do with my bookmarks", or any explicit request for ranked, prioritized actions across saved items.
+**Trigger phrases:** "deep analysis of my bookmarks/stars/highlights", "process the backlog", "extract actions from my saved items", "bookmark action queue", "analyze my stars", "analyze my highlights", "process my reader inbox", "process my saved items", "what should I do with my bookmarks", or any explicit request for ranked, prioritized actions across saved items.
 
 **How it differs from Workflow 1 (Action-First Digest):**
 - Action-First Digest = quick triage of recent bookmarks, agent-executable actions per bookmark (X only)
-- Deep Analysis = rigorous 4-pass process (inventory → classify → cross-cluster → score & rank) producing a capped queue of 15 ranked actions tied to Sam's active workstreams (job search, Margin, case studies, writing, operating system). Pulls from X bookmarks AND/OR GitHub stars.
+- Deep Analysis = rigorous 4-pass process (inventory → classify → cross-cluster → score & rank) producing a capped queue of 15 ranked actions tied to Sam's active workstreams (job search, Margin, case studies, writing, operating system). Pulls from any combination of X bookmarks, GitHub stars, and Readwise (Reader + highlights).
 
 **When to use which:**
 - Default to Workflow 1 for "check my bookmarks" / weekly digest cadence
-- Use Workflow 6 when the batch is ≥30 items, when Sam mentions GitHub stars at all, when he explicitly asks for "deep analysis" or "action queue," or when the goal is backlog clearance rather than weekly hygiene
+- Use Workflow 6 when the batch is ≥30 items, when Sam mentions GitHub stars OR Readwise at all, when he explicitly asks for "deep analysis" or "action queue," or when the goal is backlog clearance rather than weekly hygiene
 
 **Procedure:** Two variants live under `references/`. Pick by runtime:
 - **Claude Code / Claude API** → [references/deep-analysis.md](references/deep-analysis.md)
 - **Codex CLI / ChatGPT GPT-5 / any OpenAI surface** → [references/deep-analysis-gpt5.md](references/deep-analysis-gpt5.md)
 
-Both cover the same 4-pass process, dual-source ingestion (bird CLI for X, gh CLI for GitHub), action record schema, ranking priority, output structure, and common mistakes. They differ in structural cues (the GPT-5 variant uses XML-tagged sections, an explicit `<persistence>` block, a self-reflection rubric, and stop conditions tuned for GPT-5's failure modes). If unsure which to load, use the Claude version.
+Both cover the same 4-pass process, three-source ingestion (bird CLI for X, gh CLI for GitHub, readwise CLI for Reader + highlights), the `readwise-full-content-strict` rule for non-text Reader categories, action record schema, ranking priority (3-source convergence ranks above 2-source ranks above within-source), output structure, and common mistakes. They differ in structural cues (the GPT-5 variant uses XML-tagged sections, an explicit `<persistence>` block, a self-reflection rubric, and stop conditions tuned for GPT-5's failure modes). If unsure which to load, use the Claude version.
 
 **Non-goals:**
 - Not a substitute for Workflow 1's quick weekly digest — heavier process, slower
 - Does not generate finished outreach copy (Sam writes final prose; the queue produces angle + draft skeleton only)
-- Does not unbookmark, unstar, or modify X / GitHub state (read-only)
+- Does not unbookmark, unstar, archive Reader docs, or modify X / GitHub / Readwise state (read-only)
 - Does not deep-read repo source files — README + topics + metadata is the inventory depth
+- Does not compile from Readwise auto-summaries when the strict rule triggers (podcast/video/pdf/epub, word_count >3000, summary <150 chars) — extracts full content or marks as failed-to-expand
 
 ## Error Handling
 
